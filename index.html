@@ -129,7 +129,7 @@ body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif
 // =====================================================================
 // Paste your Google Sheets published CSV URL here (one-time setup).
 // After that, all data changes happen in the spreadsheet.
-const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQktvvtw-4zR_HmPaTQCtr9A4VqY7nuQZFHmedXayjc42QljPSzuDzTDhIGEjHwinozXV-fWhTpN7JH/pub?gid=1187962454&single=true&output=csv';
+const SHEET_CSV_URL = '';
 // =====================================================================
 
 /*
@@ -339,9 +339,7 @@ async function loadData() {
 function bootUI() {
   // Status
   const ds = document.getElementById('dataSourceStatus');
-  ds.innerHTML = SOURCE === 'live'
-    ? `<span class="dot" style="background:var(--green)"></span>Data langsung dari Google Sheets`
-    : `<span class="dot" style="background:var(--red)"></span>Data tempatan — <a href="#" onclick="showSetup();return false;">sambung ke Google Sheets</a>`;
+  ds.innerHTML = '';
   document.getElementById('periodBadge').textContent = PERIOD;
 
   // Build tabs dynamically
@@ -588,6 +586,25 @@ function renderSection(sec) {
   el.innerHTML = html;
 }
 
+// =================== SETUP ===================
+function showSetup() {
+  document.getElementById('content').innerHTML = `
+    <div class="setup-box">
+      <h2>Sambung ke Google Sheets</h2>
+      <ol>
+        <li>Import <code>KPI_Template_Sabah_Pergigian.xlsx</code> ke Google Sheets</li>
+        <li>Kemaskini data dalam sheet <strong>"Data"</strong></li>
+        <li>File → Share → Publish to web → pilih sheet <strong>"Data"</strong> → format <strong>"CSV"</strong></li>
+        <li>Salin URL yang diberi</li>
+        <li>Buka fail HTML ini → cari <code>const SHEET_CSV_URL = '';</code></li>
+        <li>Tampal URL antara tanda petikan → save</li>
+      </ol>
+      <div style="margin-top:18px;padding:16px;background:var(--green-dim);border-radius:8px;font-size:19px;color:var(--green);">
+        <strong>Selepas setup:</strong> Edit Google Sheet sahaja. Dashboard auto-refresh. Tambah section baru (cth: OKU, KOMUNITI) dalam sheet — tab baru muncul automatik dalam dashboard.
+      </div>
+      <button onclick="renderOverview()">← Kembali ke Dashboard</button>
+    </div>`;
+}
 
 // =================== INIT ===================
 try {

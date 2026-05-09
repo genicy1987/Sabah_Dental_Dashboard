@@ -84,7 +84,7 @@ body::before {
   font-family:'DM Sans', system-ui, sans-serif;
   font-weight:800;
   font-size:clamp(36px, 4vw, 54px);
-  letter-spacing:-1.6px;
+  letter-spacing:-1.8px;
   line-height:.98;
   color:var(--text);
   max-width:930px;
@@ -345,23 +345,105 @@ body::before {
   .legend { gap:6px; }
   .legend-item { font-size:11px; padding:5px 8px; }
 }
+
+/* Footer */
+.footer-bar {
+  text-align:center;
+  padding:28px 0 8px;
+  font-size:14px;
+  color:var(--text-dim);
+  border-top:1px solid var(--border);
+  margin-top:36px;
+}
+
+/* =================== PRINT STYLESHEET =================== */
+@media print {
+  /* Remove background effects */
+  body { background:#fff !important; font-size:11px; }
+  body::before { display:none; }
+
+  /* Remove interactive elements */
+  .nav-tabs, .data-source, .setup-box { display:none !important; }
+
+  /* Clean header */
+  .header {
+    box-shadow:none; border:1px solid #ddd;
+    border-radius:0; padding:16px; margin-bottom:16px;
+    background:#fff !important; break-inside:avoid;
+  }
+  .header::after { display:none; }
+  .header h1 { font-size:24px; -webkit-text-fill-color:var(--accent); }
+  .header-sub { font-size:12px; }
+  .period-badge { box-shadow:none; font-size:12px; padding:6px 12px; }
+
+  /* Cards */
+  .summary-row { gap:8px; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); }
+  .summary-card {
+    box-shadow:none; border:1px solid #ddd;
+    border-radius:6px; padding:10px; min-height:auto;
+    break-inside:avoid;
+  }
+  .summary-card::after { display:none; }
+  .summary-card .label { font-size:8px; margin-bottom:4px; }
+  .summary-card .value { font-size:20px; }
+  .summary-card .sub { font-size:9px; margin-top:4px; }
+
+  /* Panels */
+  .panel {
+    box-shadow:none; border:1px solid #ddd;
+    border-radius:6px; padding:12px;
+    break-inside:avoid;
+  }
+  .panel-title { font-size:13px; }
+  .panel-sub { font-size:10px; margin-bottom:8px; }
+  .dashboard-grid { gap:10px; }
+
+  /* Heatmap */
+  .heatmap-table th { font-size:8px; padding:4px 3px; }
+  .heatmap-table td { font-size:9px; padding:5px 4px; border-radius:3px; }
+  .heatmap-table td:first-child { min-width:80px; }
+  .cell-green { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  .cell-amber { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  .cell-red   { print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+
+  /* Bars */
+  .bar-row { grid-template-columns:90px minmax(80px,1fr) 50px; gap:4px; }
+  .bar-label { font-size:9px; }
+  .bar-track { height:16px; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+  .bar-value { font-size:9px; }
+
+  /* Legend */
+  .legend-item { font-size:9px; padding:3px 6px; }
+  .legend-dot { width:8px; height:8px; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
+
+  /* Issue cards */
+  .panel.full div[style*="border-left:3px solid"] { padding:8px !important; border-radius:4px !important; }
+
+  /* Footer */
+  .footer-bar { font-size:10px; padding:12px 0; margin-top:16px; }
+  .footer-bar img { display:none; }
+
+  /* Page setup */
+  @page { margin:1.5cm; size:A4 landscape; }
+}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="header">
     <div>
-      <h1>Dashboard KPI <span>Cawangan Penjagaan</span></h1>
-      <div class="header-sub">Bahagian Kesihatan Pergigian Negeri Sabah</div>      
+      <h1>Dashboard KPI <span>Kesihatan Pergigian Sabah</span></h1>
+      <div class="header-sub">Paparan ringkas pencapaian negeri, daerah dan isu keutamaan untuk tindakan pengurusan</div>
       <div class="data-source" id="dataSourceStatus"></div>
     </div>
     <div class="period-badge" id="periodBadge">Memuatkan...</div>
   </div>
   <div class="nav-tabs" id="navTabs" style="display:none;"></div>
   <div id="content"><div class="loading"><div class="spinner"></div><br>Memuatkan data...</div></div>
-  <div style="text-align:center;padding:28px 0 8px;font-size:14px;color:var(--text-dim);border-top:1px solid var(--border);margin-top:36px;">
-    Copyright &copy; Bahagian Kesihatan Pergigian Negeri Sabah. All rights reserved.
-    <div style="margin-top:10px;font-size:11px;color:var(--text-dim);opacity:0.6;">
+  <div class="footer-bar">
+    <div id="lastUpdated" style="font-size:13px;color:var(--muted);margin-bottom:6px;"></div>
+    <div>Copyright &copy; Bahagian Kesihatan Pergigian Negeri Sabah. All rights reserved.</div>
+    <div style="margin-top:10px;font-size:11px;opacity:0.6;">
       <img src="https://visitor-badge.laobi.icu/badge?page_id=genicy1987.Sabah_Dental_Dashboard&left_color=%23555555&right_color=%23999999&left_text=visitors" alt="visitor count" style="height:18px;vertical-align:middle;">
     </div>
   </div>
@@ -383,7 +465,7 @@ const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQktvvtw-
 
   Row 1:  Title (ignored)
   Row 2:  "Suku Tahun: Jan - Mac 2026"  ← period label, read by dashboard
-  Row 3:  blank
+  Row 3:  "Tarikh Kemaskini: 9 Mei 2026" ← last updated date, shown in footer
   Row 4:  header row: "KPI / Daerah", KK, SDN, TWU, KGU, KDT, BFT, KB, LD, PP, SBH
   Row 5:  full district names (ignored)
   Row 6+: data rows
@@ -417,6 +499,7 @@ const DNAMES = {KK:'Kota Kinabalu',SDN:'Sandakan',TWU:'Tawau',KGU:'Keningau',
 // =================== STATE ===================
 let SECTIONS = [];   // [{id, name, kpis:[{label, values:{KK:…}, target, inverted, isCount}]}]
 let PERIOD = '';
+let LAST_UPDATED = '';
 let SOURCE = 'none';
 
 // =================== CSV PARSER ===================
@@ -451,6 +534,10 @@ function parseSheet(rows) {
   // Period from row 2
   if (rows[1] && rows[1][0]) {
     PERIOD = rows[1][0].replace(/Suku Tahun:\s*/i, '').trim() || 'Q1 2026';
+  }
+  // Last updated from row 3
+  if (rows[2] && rows[2][0]) {
+    LAST_UPDATED = rows[2][0].replace(/Tarikh Kemaskini:\s*/i, '').trim();
   }
 
   let currentSection = null;
@@ -567,6 +654,7 @@ function loadFallback() {
     kpis: s.kpis.map(k => ({...k, target:k.target||null, inverted:!!k.inverted, isCount:!!k.isCount}))
   }));
   PERIOD = 'Jan — Mac 2026';
+  LAST_UPDATED = '';
 }
 
 // =================== LOAD ===================
@@ -593,6 +681,14 @@ function bootUI() {
   const ds = document.getElementById('dataSourceStatus');
   ds.innerHTML = '';
   document.getElementById('periodBadge').textContent = PERIOD;
+
+  // Last updated timestamp
+  const luEl = document.getElementById('lastUpdated');
+  if (LAST_UPDATED) {
+    luEl.textContent = 'Tarikh Kemaskini: ' + LAST_UPDATED;
+  } else {
+    luEl.textContent = '';
+  }
 
   // Build tabs dynamically
   const navEl = document.getElementById('navTabs');

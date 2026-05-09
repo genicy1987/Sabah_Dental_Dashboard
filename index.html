@@ -499,13 +499,17 @@ function renderOverview() {
       </table></div>`;
   }
 
-  // Auto-generated issues: KPIs where SBH is red
+  // Auto-generated issues: KPIs where SBH is red or amber
   const issues = [];
   SECTIONS.forEach(sec => {
     sec.kpis.forEach(kpi => {
       if (!kpi.target) return;
-      const cls = statusCls(kpi.values.SBH, kpi.target, kpi.inverted);
-      if (cls === 'cell-red') {
+      const val = kpi.values.SBH;
+      if (val == null) return;
+      const cls = statusCls(val, kpi.target, kpi.inverted);
+      if (cls === 'cell-red' || cls === 'cell-amber') {
+        // Calculate gap from target (how far off, as ratio)
+        const gap = kpi.inverted ? (val / kpi.target) : (kpi.target / val);
         // Find worst district
         const dists = activeDists(kpi);
         let worst = dists[0], worstV = kpi.values[dists[0]];
@@ -515,32 +519,49 @@ function renderOverview() {
           if (kpi.inverted ? v > worstV : v < worstV) { worst = d; worstV = v; }
         });
         issues.push({
-          title: `${sec.name}: ${kpi.label} = ${fmtVal(kpi, kpi.values.SBH)}`,
-          desc: `Sasaran: ${kpi.target}. Daerah paling rendah: ${DNAMES[worst]} (${fmtVal(kpi, worstV)})`,
-          color: 'red'
-        });
-      } else if (cls === 'cell-amber') {
-        issues.push({
-          title: `${sec.name}: ${kpi.label} = ${fmtVal(kpi, kpi.values.SBH)}`,
-          desc: `Hampir sasaran (${kpi.target}) tetapi belum tercapai`,
-          color: 'amber'
+          title: `${sec.name}: ${kpi.label} = ${fmtVal(kpi, val)}`,
+          desc: cls === 'cell-red'
+            ? `Sasaran: ${kpi.target}. Daerah paling kritikal: ${DNAMES[worst]} (${fmtVal(kpi, worstV)})`
+            : `Sasaran: ${kpi.target} — hampir tercapai, perlu sedikit lagi usaha`,
+          color: cls === 'cell-red' ? 'red' : 'amber',
+          gap: gap
         });
       }
     });
   });
 
+  // Sort: red items first (worst gap first), then amber items (closest to target first)
+  const redIssues = issues.filter(i => i.color === 'red').sort((a, b) => b.gap - a.gap);
+  const amberIssues = issues.filter(i => i.color === 'amber').sort((a, b) => a.gap - b.gap);
+
   if (issues.length > 0) {
     html += `<div class="panel full">
       <div class="panel-title" style="color:var(--red);">Isu — KPI Belum Mencapai Sasaran</div>
-      <div class="panel-sub">Dijana automatik berdasarkan sasaran POA</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
-        ${issues.map(iss => `
-          <div style="padding:12px;background:var(--${iss.color}-dim);border-radius:8px;border-left:3px solid var(--${iss.color});">
-            <div style="font-size:18px;font-weight:700;color:var(--${iss.color});margin-bottom:6px;">${iss.title}</div>
-            <div style="font-size:17px;color:var(--text-dim);">${iss.desc}</div>
-          </div>`).join('')}
-      </div>
-    </div>`;
+      <div class="panel-sub">Disusun mengikut keutamaan — kritikal di atas, hampir tercapai di bawah</div>`;
+
+    if (redIssues.length > 0) {
+      html += `<div style="font-size:15px;font-weight:700;color:var(--red);margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.5px;">Kritikal — Perlu Tindakan Segera</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          ${redIssues.map(iss => `
+            <div style="padding:12px;background:var(--red-dim);border-radius:8px;border-left:3px solid var(--red);">
+              <div style="font-size:18px;font-weight:700;color:var(--red);margin-bottom:6px;">${iss.title}</div>
+              <div style="font-size:17px;color:var(--text-dim);">${iss.desc}</div>
+            </div>`).join('')}
+        </div>`;
+    }
+
+    if (amberIssues.length > 0) {
+      html += `<div style="font-size:15px;font-weight:700;color:var(--amber);margin:20px 0 8px;text-transform:uppercase;letter-spacing:0.5px;">Hampir Tercapai — Tingkatkan Sedikit Lagi</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          ${amberIssues.map(iss => `
+            <div style="padding:12px;background:var(--amber-dim);border-radius:8px;border-left:3px solid var(--amber);">
+              <div style="font-size:18px;font-weight:700;color:var(--amber);margin-bottom:6px;">${iss.title}</div>
+              <div style="font-size:17px;color:var(--text-dim);">${iss.desc}</div>
+            </div>`).join('')}
+        </div>`;
+    }
+
+    html += `</div>`;
   }
 
   el.innerHTML = html;

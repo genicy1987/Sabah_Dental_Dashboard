@@ -66,9 +66,9 @@ body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif
 /* Heatmap */
 .heatmap-table { width:100%; border-collapse:separate; border-spacing:4px; }
 .heatmap-table th { font-size:16px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-dim); padding:10px 12px; text-align:center; font-weight:600; }
-.heatmap-table th:first-child { text-align:left; }
+.heatmap-table th:first-child { text-align:left; position:sticky; left:0; z-index:3; background:var(--surface); }
 .heatmap-table td { padding:12px 14px; text-align:center; border-radius:6px; font-size:18px; font-weight:600; }
-.heatmap-table td:first-child { text-align:left; font-weight:600; color:var(--text); background:transparent !important; }
+.heatmap-table td:first-child { text-align:left; font-weight:600; color:var(--text); background:var(--surface) !important; position:sticky; left:0; z-index:2; }
 .heatmap-table tr:hover td:first-child { color:var(--accent); }
 .cell-green { background:var(--green-dim); color:var(--green); }
 .cell-amber { background:var(--amber-dim); color:var(--amber); }
@@ -114,7 +114,7 @@ body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif
   <div class="header">
     <div>
       <h1>Kesihatan Pergigian <span>Sabah</span></h1>
-      <div class="header-sub">Dashboard Pencapaian Cawangan Penjagaan Kesihatan Pergigian — Bahagian Kesihatan Pergigian Negeri Sabah</div>
+      <div class="header-sub">Dashboard Pencapaian KPI — Bahagian Kesihatan Pergigian Negeri Sabah</div>
       <div class="data-source" id="dataSourceStatus"></div>
     </div>
     <div class="period-badge" id="periodBadge">Memuatkan...</div>

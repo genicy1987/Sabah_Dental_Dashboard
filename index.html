@@ -129,7 +129,7 @@ body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif
 // =====================================================================
 // Paste your Google Sheets published CSV URL here (one-time setup).
 // After that, all data changes happen in the spreadsheet.
-const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQktvvtw-4zR_HmPaTQCtr9A4VqY7nuQZFHmedXayjc42QljPSzuDzTDhIGEjHwinozXV-fWhTpN7JH/pub?gid=1187962454&single=true&output=csv';
+const SHEET_CSV_URL = '';
 // =====================================================================
 
 /*
@@ -177,16 +177,23 @@ let SOURCE = 'none';
 
 // =================== CSV PARSER ===================
 function parseCSV(text) {
-  return text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+  return text.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l.trim()).map(line => {
     const cells = []; let cur = '', inQ = false;
     for (const ch of line) {
       if (ch === '"') inQ = !inQ;
-      else if (ch === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
+      else if (ch === ',' && !inQ) { cells.push(cur); cur = ''; }
       else cur += ch;
     }
-    cells.push(cur.trim());
-    return cells;
+    cells.push(cur);
+    // Trim all cells except the first one (preserve leading spaces for Sasaran detection)
+    return cells.map((c, i) => i === 0 ? c : c.trim());
   });
+}
+
+// Strip thousand-separator commas before parsing (e.g. "1,835" → 1835)
+function parseNum(raw) {
+  if (raw === undefined || raw === null || raw === '') return NaN;
+  return parseFloat(String(raw).replace(/,/g, ''));
 }
 
 function isSectionHeader(label) {
@@ -211,13 +218,13 @@ function parseSheet(rows) {
     const label = row[0];
 
     // Skip district name row
-    if (label === '' || label === 'KPI / Daerah') continue;
+    if (label.trim() === '' || label.trim() === 'KPI / Daerah') continue;
 
     // Sasaran row?
     if (/^\s{2,}Sasaran/.test(label) && lastKpi) {
       // Find first non-empty numeric value as the target
       for (let c = 1; c <= 10; c++) {
-        const v = parseFloat(row[c]);
+        const v = parseNum(row[c]);
         if (!isNaN(v)) { lastKpi.target = v; break; }
       }
       continue;
@@ -227,8 +234,8 @@ function parseSheet(rows) {
     if (/^\s{2,}/.test(label)) continue;
 
     // Section header?
-    if (isSectionHeader(label)) {
-      currentSection = { id: label.toLowerCase().replace(/[\s\/]+/g, '_'), name: label, kpis: [] };
+    if (isSectionHeader(label.trim())) {
+      currentSection = { id: label.trim().toLowerCase().replace(/[\s\/]+/g, '_'), name: label.trim(), kpis: [] };
       SECTIONS.push(currentSection);
       lastKpi = null;
       continue;
@@ -241,8 +248,9 @@ function parseSheet(rows) {
     let hasAny = false;
     for (let c = 0; c < DCOLS.length; c++) {
       const raw = row[c + 1];
-      if (raw !== undefined && raw !== '' && !isNaN(parseFloat(raw))) {
-        vals[DCOLS[c]] = parseFloat(raw);
+      const v = parseNum(raw);
+      if (!isNaN(v)) {
+        vals[DCOLS[c]] = v;
         hasAny = true;
       }
     }
@@ -251,7 +259,7 @@ function parseSheet(rows) {
     const inverted = /unmet/i.test(label);
     const isCount = /jumlah|bilangan/i.test(label);
 
-    const kpi = { label, values: vals, target: null, inverted, isCount };
+    const kpi = { label: label.trim(), values: vals, target: null, inverted, isCount };
     currentSection.kpis.push(kpi);
     lastKpi = kpi;
   }

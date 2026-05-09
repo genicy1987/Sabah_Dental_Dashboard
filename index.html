@@ -114,7 +114,7 @@ body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif
   <div class="header">
     <div>
       <h1>Kesihatan Pergigian <span>Sabah</span></h1>
-      <div class="header-sub">Dashboard Pencapaian — Bahagian Kesihatan Pergigian Negeri Sabah</div>
+      <div class="header-sub">Dashboard Pencapaian KPI — Bahagian Kesihatan Pergigian Negeri Sabah</div>
       <div class="data-source" id="dataSourceStatus"></div>
     </div>
     <div class="period-badge" id="periodBadge">Memuatkan...</div>
@@ -464,7 +464,23 @@ function renderOverview() {
         <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Belum Tercapai (<70%)</div>
       </div>
       <table class="heatmap-table">
-      <tr><th>Daerah</th>${targetKpis.map(tk => `<th>${tk.section}<br>${tk.kpi.label}</th>`).join('')}</tr>
+      ${(() => {
+        // Build grouped header: row 1 = section names with colspan, row 2 = KPI labels
+        const groups = [];
+        let lastSection = '';
+        targetKpis.forEach(tk => {
+          if (tk.section !== lastSection) {
+            groups.push({ section: tk.section, count: 1 });
+            lastSection = tk.section;
+          } else {
+            groups[groups.length - 1].count++;
+          }
+        });
+        return `<tr><th rowspan="2" style="vertical-align:bottom;">Daerah</th>${groups.map(g =>
+          `<th colspan="${g.count}" style="border-bottom:2px solid var(--border);padding-bottom:4px;">${g.section}</th>`
+        ).join('')}</tr>
+        <tr>${targetKpis.map(tk => `<th style="font-size:14px;font-weight:500;">${tk.kpi.label}</th>`).join('')}</tr>`;
+      })()}
       ${[...DCOLS.slice(0,9), 'SBH'].map(d => {
         const name = d === 'SBH' ? '<strong>SABAH</strong>' : DNAMES[d];
         const wrap = d === 'SBH' ? v => `<strong>${v}</strong>` : v => v;

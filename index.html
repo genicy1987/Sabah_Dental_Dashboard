@@ -280,20 +280,70 @@ body::before {
 .panel.full div[style*="border-left:3px solid"] { border-radius:16px !important; padding:16px !important; }
 
 /* Responsive */
+
+/* Tablet (iPad) */
 @media(max-width:1000px) {
   .dashboard-grid { grid-template-columns:1fr; }
   .header { grid-template-columns:1fr; align-items:start; }
   .period-badge { justify-self:start; }
+  .summary-row { grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); }
 }
+
+/* Mobile landscape / small tablet */
 @media(max-width:720px) {
-  .app { padding:16px; }
-  .header { padding:22px; border-radius:24px; }
-  .summary-row { grid-template-columns:1fr; }
-  .nav-tab { padding:10px 16px; font-size:15px; }
-  .panel { padding:18px; }
-  .bar-row { grid-template-columns:1fr; gap:6px; }
-  .bar-label { text-align:left; }
-  .bar-value { text-align:left; }
+  .app { padding:16px 14px; }
+  .header { padding:20px; border-radius:20px; }
+  .header h1 { font-size:28px; letter-spacing:-1px; }
+  .header-sub { font-size:16px; }
+  .period-badge { padding:10px 18px; font-size:15px; min-width:auto; }
+  .summary-row { grid-template-columns:1fr 1fr; gap:10px; }
+  .summary-card { padding:16px; min-height:120px; border-radius:16px; }
+  .summary-card .label { font-size:11px; margin-bottom:8px; }
+  .summary-card .value { font-size:28px; }
+  .summary-card .sub { font-size:13px; margin-top:8px; }
+  .nav-tabs { padding:5px; gap:4px; border-radius:14px; }
+  .nav-tab { padding:10px 14px; font-size:14px; border-radius:10px; }
+  .panel { padding:16px; border-radius:16px; }
+  .panel-title { font-size:18px; }
+  .panel-sub { font-size:14px; }
+  .bar-row { grid-template-columns:90px minmax(80px,1fr) 60px; gap:8px; }
+  .bar-label { font-size:12px; }
+  .bar-track { height:26px; }
+  .bar-value { font-size:12px; }
+  .heatmap-table { border-spacing:3px; }
+  .heatmap-table th { font-size:11px; padding:6px 5px; }
+  .heatmap-table td { font-size:13px; padding:8px 6px; border-radius:8px; }
+  .heatmap-table td:first-child { min-width:110px; }
+  .legend-item { font-size:12px; padding:6px 10px; }
+  .legend-dot { width:10px; height:10px; }
+  .panel.full div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns:1fr !important; }
+}
+
+/* Mobile portrait */
+@media(max-width:480px) {
+  .app { padding:12px 10px; }
+  .header { padding:16px; border-radius:16px; }
+  .header h1 { font-size:24px; letter-spacing:-0.8px; }
+  .header-sub { font-size:14px; }
+  .header::after { width:200px; height:200px; right:-80px; top:-100px; }
+  .period-badge { padding:8px 14px; font-size:13px; }
+  .summary-row { grid-template-columns:1fr 1fr; gap:8px; }
+  .summary-card { padding:14px; min-height:110px; }
+  .summary-card .label { font-size:10px; letter-spacing:.5px; }
+  .summary-card .value { font-size:24px; letter-spacing:-1px; }
+  .summary-card .sub { font-size:11px; }
+  .nav-tabs { gap:3px; padding:4px; border-radius:12px; }
+  .nav-tab { padding:8px 12px; font-size:12px; font-weight:700; border-radius:8px; }
+  .panel { padding:14px; }
+  .panel-title { font-size:16px; }
+  .panel-sub { font-size:13px; margin-bottom:12px; }
+  .bar-row { grid-template-columns:80px minmax(60px,1fr) 55px; gap:6px; }
+  .bar-label { font-size:11px; }
+  .bar-track { height:22px; }
+  .bar-value { font-size:11px; }
+  .heatmap-table td:first-child { min-width:90px; font-size:12px; }
+  .legend { gap:6px; }
+  .legend-item { font-size:11px; padding:5px 8px; }
 }
 </style>
 </head>
@@ -301,7 +351,8 @@ body::before {
 <div class="app">
   <div class="header">
     <div>
-      <h1>Dashboard KPI Cawangan Penjagaan <span> Bahagian Kesihatan Pergigian Sabah</span></h1>
+      <h1>Dashboard KPI <span>Kesihatan Pergigian Sabah</span></h1>
+      <div class="header-sub">Paparan ringkas pencapaian negeri, daerah dan isu keutamaan untuk tindakan pengurusan</div>
       <div class="data-source" id="dataSourceStatus"></div>
     </div>
     <div class="period-badge" id="periodBadge">Memuatkan...</div>

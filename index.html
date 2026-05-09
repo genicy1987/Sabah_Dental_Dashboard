@@ -113,8 +113,8 @@ body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif
 <div class="app">
   <div class="header">
     <div>
-      <h1><span>Kesihatan Pergigian Sabah</span></h1>
-      <div class="header-sub">Dashboard Pencapaian KPI Cawangan Penjagaan— Bahagian Kesihatan Pergigian Negeri Sabah</div>
+      <h1>Kesihatan Pergigian <span>Sabah</span></h1>
+      <div class="header-sub">Dashboard Pencapaian KPI — Bahagian Kesihatan Pergigian Negeri Sabah</div>
       <div class="data-source" id="dataSourceStatus"></div>
     </div>
     <div class="period-badge" id="periodBadge">Memuatkan...</div>
@@ -522,7 +522,21 @@ function renderOverview() {
           title: `${sec.name}: ${kpi.label} = ${fmtVal(kpi, val)}`,
           desc: cls === 'cell-red'
             ? `Sasaran: ${kpi.target}. Daerah paling kritikal: ${DNAMES[worst]} (${fmtVal(kpi, worstV)})`
-            : `Sasaran: ${kpi.target} — hampir tercapai, perlu sedikit lagi usaha`,
+            : (() => {
+                // Count districts that hit vs miss the target
+                const achieved = dists.filter(d => {
+                  const v = kpi.values[d];
+                  if (v == null) return false;
+                  return kpi.inverted ? v <= kpi.target : v >= kpi.target;
+                });
+                const notAchieved = dists.length - achieved.length;
+                const needNames = dists.filter(d => {
+                  const v = kpi.values[d];
+                  if (v == null) return false;
+                  return kpi.inverted ? v > kpi.target : v < kpi.target;
+                }).map(d => DNAMES[d]);
+                return `Sasaran: ${kpi.target}. ${achieved.length}/${dists.length} daerah telah capai sasaran. Perlu usaha lagi: ${needNames.join(', ')}`;
+              })(),
           color: cls === 'cell-red' ? 'red' : 'amber',
           gap: gap
         });

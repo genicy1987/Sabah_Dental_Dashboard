@@ -880,12 +880,7 @@ function parseTrendSectionHeader(rows) {
   });
   if (!yearCols.length) return [];
 
-  // Known section headers from the Data sheet
-  const SECTION_NAMES = [
-    'IBU MENGANDUNG', 'TODDLER', 'PRASEKOLAH / TADIKA',
-    'SEKOLAH RENDAH', 'SEKOLAH MENENGAH', 'DEWASA', 'WARGA EMAS'
-  ];
-
+  
   const out = [];
   let currentSection = '';
 
@@ -899,10 +894,12 @@ function parseTrendSectionHeader(rows) {
     // Skip note rows
     if (/^nota:/i.test(label)) continue;
 
-    // Check if this is a section header
-    if (SECTION_NAMES.includes(label.toUpperCase()) || SECTION_NAMES.includes(label)) {
-      currentSection = label;
-      continue;
+    // Check if this is a section header using the same rule as the Data tab
+    const hasYearValues = yearCols.some(yc => String(row[yc.col] || '').trim() !== '');
+
+    if (isSectionHeader(label) && !hasYearValues) {
+        currentSection = label;
+        continue;
     }
 
     // This is a KPI row

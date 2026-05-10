@@ -249,6 +249,79 @@ body::before {
 }
 .legend-dot { width:12px; height:12px; border-radius:999px; }
 
+
+/* Trend — state-level historical charts */
+.trend-toolbar {
+  display:flex; gap:10px; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; margin-bottom:18px;
+}
+.trend-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.trend-btn {
+  padding:10px 16px; border:1px solid var(--border);
+  background:#fff; color:var(--text-dim);
+  border-radius:999px; font-size:15px; font-weight:900;
+  cursor:pointer; transition:all .2s ease;
+}
+.trend-btn:hover { color:var(--accent); border-color:var(--border-strong); background:rgba(37,99,235,.06); }
+.trend-btn.active { color:#fff; background:var(--accent); border-color:var(--accent); }
+.trend-group { margin-bottom:22px; }
+.trend-group-title {
+  display:flex; align-items:center; gap:10px;
+  font-size:20px; font-weight:900; letter-spacing:-.3px;
+  margin:4px 0 12px; color:var(--text);
+}
+.trend-group-title::before {
+  content:''; width:10px; height:10px; border-radius:999px;
+  background:var(--accent); box-shadow:0 0 0 5px rgba(37,99,235,.10);
+}
+.trend-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(360px,1fr)); gap:14px; }
+.trend-card {
+  border:1px solid var(--border); border-radius:18px; background:#fff;
+  padding:16px; box-shadow:var(--shadow-soft); overflow:hidden;
+}
+.trend-card-header {
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+  margin-bottom:10px;
+}
+.trend-card-title { font-size:17px; font-weight:900; line-height:1.2; letter-spacing:-.2px; }
+.trend-chip {
+  flex:0 0 auto; font-size:11px; font-weight:900; text-transform:uppercase;
+  letter-spacing:.45px; border-radius:999px; padding:6px 9px;
+  border:1px solid var(--border); color:var(--text-dim); background:var(--surface3);
+}
+.trend-chip.good { color:var(--green); background:var(--green-dim); border-color:rgba(22,163,74,.18); }
+.trend-chip.watch { color:var(--amber); background:var(--amber-dim); border-color:rgba(245,158,11,.22); }
+.trend-chip.bad { color:var(--red); background:var(--red-dim); border-color:rgba(239,68,68,.18); }
+.trend-meta { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 10px; }
+.trend-meta span {
+  font-size:12px; font-weight:800; color:var(--text-dim);
+  background:var(--surface2); border-radius:999px; padding:5px 8px;
+}
+.trend-svg-wrap {
+  width:100%; height:210px; border-radius:14px;
+  background:linear-gradient(180deg, var(--surface3), #fff);
+  border:1px solid rgba(15,23,42,.06); overflow:hidden;
+}
+.trend-note { font-size:13px; color:var(--text-dim); line-height:1.35; margin-top:10px; }
+.trend-empty {
+  border:1px dashed var(--border-strong); border-radius:18px;
+  padding:20px; background:rgba(37,99,235,.04); color:var(--text-dim);
+  font-size:15px; line-height:1.5; font-weight:700;
+}
+.trend-template-table {
+  width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;
+}
+.trend-template-table th, .trend-template-table td {
+  border:1px solid var(--border); padding:8px; text-align:left;
+}
+.trend-template-table th { background:var(--surface2); color:var(--text-dim); font-weight:900; }
+
+@media(max-width:720px) {
+  .trend-grid { grid-template-columns:1fr; }
+  .trend-svg-wrap { height:180px; }
+  .trend-card { padding:13px; border-radius:14px; }
+}
+
 /* Loading — styled card */
 .loading {
   text-align:center; padding:70px 20px; color:var(--text-dim);
@@ -456,6 +529,16 @@ body::before {
 // Paste your Google Sheets published CSV URL here (one-time setup).
 // After that, all data changes happen in the spreadsheet.
 const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQktvvtw-4zR_HmPaTQCtr9A4VqY7nuQZFHmedXayjc42QljPSzuDzTDhIGEjHwinozXV-fWhTpN7JH/pub?gid=1187962454&single=true&output=csv';
+
+// Optional: publish the "Trend_Input_State" sheet as CSV and paste the URL here.
+// Leave blank first. The dashboard will still create a "Trend Negeri" tab using
+// the current SBH values as the latest year, while waiting for historical values.
+const TREND_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQktvvtw-4zR_HmPaTQCtr9A4VqY7nuQZFHmedXayjc42QljPSzuDzTDhIGEjHwinozXV-fWhTpN7JH/pub?gid=912084885&single=true&output=csv';
+
+// For 5 years back + current year. Edit if you want a different range.
+const TREND_YEAR_START = 2021;
+const TREND_YEAR_END   = 2025;
+
 // =====================================================================
 
 /*
@@ -596,6 +679,215 @@ function parseSheet(rows) {
   }
 }
 
+
+// =================== TREND DATA ===================
+function normHeader(h) {
+  return String(h || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function getYearRange() {
+  const years = [];
+  for (let y = TREND_YEAR_START; y <= TREND_YEAR_END; y++) years.push(String(y));
+  return years;
+}
+
+function extractYearFromPeriod() {
+  const m = String(PERIOD || '').match(/20\d{2}/g);
+  if (m && m.length) return Number(m[m.length - 1]);
+  return TREND_YEAR_END;
+}
+
+function inferUnit(kpi) {
+  if (kpi.isCount || /jumlah|bilangan/i.test(kpi.label)) return 'Count';
+  if (/purata|mean|dmft|dft|dfx/i.test(kpi.label)) return 'Mean';
+  if (/%|liputan|kedatangan|selesai|mbk|mbg|tpr|unmet|saringan|gigi/i.test(kpi.label)) return '%';
+  return 'Value';
+}
+
+function inferDirection(kpi) {
+  if (kpi.inverted || /unmet/i.test(kpi.label)) return 'Lower better';
+  if (kpi.isCount || /jumlah|bilangan/i.test(kpi.label)) return 'Context only';
+  if (/purata|mean|dmft|dft|dfx/i.test(kpi.label)) return 'Lower better';
+  return 'Higher better';
+}
+
+function inferInterpretation(kpi) {
+  if (kpi.isCount || /jumlah|bilangan/i.test(kpi.label)) return 'Service Volume';
+  if (/purata|mean|dmft|dft|dfx/i.test(kpi.label)) return 'Disease Burden';
+  if (/liputan/i.test(kpi.label)) return 'Coverage';
+  return 'Achievement';
+}
+
+function makeKpiCode(sectionName, kpiLabel) {
+  const s = sectionName.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 14);
+  const k = kpiLabel.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 22);
+  return `${s}_${k}`;
+}
+
+function buildTrendFromCurrent() {
+  const currentYear = String(extractYearFromPeriod());
+  const years = getYearRange();
+  TREND_ROWS = [];
+
+  SECTIONS.forEach(sec => {
+    sec.kpis.forEach(kpi => {
+      const vals = {};
+      years.forEach(y => vals[y] = '');
+      if (years.includes(currentYear) && kpi.values && kpi.values.SBH != null) {
+        vals[currentYear] = kpi.values.SBH;
+      }
+      TREND_ROWS.push({
+        section: sec.name,
+        code: makeKpiCode(sec.name, kpi.label),
+        label: kpi.label,
+        unit: inferUnit(kpi),
+        direction: inferDirection(kpi),
+        target: kpi.target || '',
+        interpretation: inferInterpretation(kpi),
+        remarks: '',
+        values: vals
+      });
+    });
+  });
+  TREND_SOURCE = 'auto-current';
+}
+
+function parseTrendWide(rows) {
+  const headerIdx = rows.findIndex(r => r.some(c => /kpi\s*code|kpi\s*label|section/i.test(c)));
+  if (headerIdx < 0) return [];
+  const header = rows[headerIdx].map(normHeader);
+  const idx = nameList => {
+    for (const name of nameList) {
+      const i = header.indexOf(normHeader(name));
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+
+  const iSection = idx(['Section','Kategori','Program']);
+  const iCode = idx(['KPI Code','Kod KPI']);
+  const iLabel = idx(['KPI Label','KPI','Indikator']);
+  const iUnit = idx(['Unit']);
+  const iDirection = idx(['Direction','Arah','Trend Direction']);
+  const iTarget = idx(['Target','Sasaran']);
+  const iInterpretation = idx(['Interpretation Type','Jenis Interpretasi','Interpretation']);
+  const iRemarks = idx(['Remarks','Catatan']);
+
+  const yearCols = [];
+  header.forEach((h, i) => {
+    if (/^20\d{2}$/.test(h)) yearCols.push({year:h, col:i});
+  });
+
+  const out = [];
+  for (let r = headerIdx + 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row || row.every(c => String(c || '').trim() === '')) continue;
+
+    const label = iLabel >= 0 ? String(row[iLabel] || '').trim() : '';
+    if (!label) continue;
+
+    const vals = {};
+    yearCols.forEach(yc => {
+      const raw = row[yc.col];
+      const v = parseNum(raw);
+      vals[yc.year] = isNaN(v) ? '' : v;
+    });
+
+    out.push({
+      section: iSection >= 0 ? String(row[iSection] || '').trim() : 'TREND',
+      code: iCode >= 0 ? String(row[iCode] || '').trim() : makeKpiCode(row[iSection] || 'TREND', label),
+      label,
+      unit: iUnit >= 0 ? String(row[iUnit] || '').trim() : '',
+      direction: iDirection >= 0 ? String(row[iDirection] || '').trim() : 'Higher better',
+      target: iTarget >= 0 && !isNaN(parseNum(row[iTarget])) ? parseNum(row[iTarget]) : '',
+      interpretation: iInterpretation >= 0 ? String(row[iInterpretation] || '').trim() : 'Achievement',
+      remarks: iRemarks >= 0 ? String(row[iRemarks] || '').trim() : '',
+      values: vals
+    });
+  }
+  return out;
+}
+
+function parseTrendLong(rows) {
+  const headerIdx = rows.findIndex(r => r.some(c => /^year$/i.test(c)) && r.some(c => /^value$/i.test(c)));
+  if (headerIdx < 0) return [];
+  const header = rows[headerIdx].map(normHeader);
+  const get = nameList => {
+    for (const name of nameList) {
+      const i = header.indexOf(normHeader(name));
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+
+  const iYear = get(['Year']);
+  const iSection = get(['Section','Kategori','Program']);
+  const iCode = get(['KPI Code','Kod KPI']);
+  const iLabel = get(['KPI Label','KPI','Indikator']);
+  const iValue = get(['Value','Nilai']);
+  const iTarget = get(['Target','Sasaran']);
+  const iUnit = get(['Unit']);
+  const iDirection = get(['Direction','Arah','Trend Direction']);
+  const iInterpretation = get(['Interpretation Type','Jenis Interpretasi','Interpretation']);
+  const iRemarks = get(['Remarks','Catatan']);
+
+  const map = new Map();
+  for (let r = headerIdx + 1; r < rows.length; r++) {
+    const row = rows[r];
+    const label = iLabel >= 0 ? String(row[iLabel] || '').trim() : '';
+    const year = iYear >= 0 ? String(row[iYear] || '').trim() : '';
+    if (!label || !/^20\d{2}$/.test(year)) continue;
+
+    const code = iCode >= 0 && row[iCode] ? String(row[iCode]).trim() : makeKpiCode(row[iSection] || 'TREND', label);
+    if (!map.has(code)) {
+      map.set(code, {
+        section: iSection >= 0 ? String(row[iSection] || '').trim() : 'TREND',
+        code,
+        label,
+        unit: iUnit >= 0 ? String(row[iUnit] || '').trim() : '',
+        direction: iDirection >= 0 ? String(row[iDirection] || '').trim() : 'Higher better',
+        target: iTarget >= 0 && !isNaN(parseNum(row[iTarget])) ? parseNum(row[iTarget]) : '',
+        interpretation: iInterpretation >= 0 ? String(row[iInterpretation] || '').trim() : 'Achievement',
+        remarks: iRemarks >= 0 ? String(row[iRemarks] || '').trim() : '',
+        values: {}
+      });
+    }
+    const v = parseNum(row[iValue]);
+    map.get(code).values[year] = isNaN(v) ? '' : v;
+  }
+  return [...map.values()];
+}
+
+function parseTrendSheet(rows) {
+  const wide = parseTrendWide(rows);
+  if (wide.length) return wide;
+  const long = parseTrendLong(rows);
+  if (long.length) return long;
+  return [];
+}
+
+async function loadTrendData() {
+  if (!TREND_CSV_URL) {
+    buildTrendFromCurrent();
+    return;
+  }
+
+  try {
+    const r = await fetch(TREND_CSV_URL);
+    if (!r.ok) throw new Error(r.status);
+    const rows = parseCSV(await r.text());
+    const parsed = parseTrendSheet(rows);
+    if (!parsed.length) throw new Error('Trend CSV structure not recognised');
+    TREND_ROWS = parsed;
+    TREND_SOURCE = 'live-trend';
+  } catch(e) {
+    console.warn('Trend sheet load failed, using current SBH values only:', e);
+    buildTrendFromCurrent();
+    TREND_SOURCE = 'trend-fallback-current';
+  }
+}
+
+
 // =================== FALLBACK DATA ===================
 function loadFallback() {
   // Build SECTIONS from the hardcoded fallback so the generic renderer works
@@ -672,6 +964,10 @@ async function loadData() {
   } else {
     loadFallback(); SOURCE = 'fallback';
   }
+
+  // Load optional state-level trend data after the current Data sheet is ready.
+  await loadTrendData();
+  
   bootUI();
 }
 
@@ -694,6 +990,7 @@ function bootUI() {
   const navEl = document.getElementById('navTabs');
   navEl.style.display = 'flex';
   navEl.innerHTML = `<div class="nav-tab active" data-view="__overview">Ringkasan Negeri</div>`
+    + `<div class="nav-tab" data-view="__trend">Trend Negeri</div>`
     + SECTIONS.map(s => `<div class="nav-tab" data-view="${s.id}">${s.name}</div>`).join('');
 
   navEl.addEventListener('click', e => {
@@ -703,6 +1000,7 @@ function bootUI() {
     tab.classList.add('active');
     const v = tab.dataset.view;
     if (v === '__overview') renderOverview();
+    else if (v === '__trend') renderTrend();
     else { const sec = SECTIONS.find(s => s.id === v); if (sec) renderSection(sec); }
   });
 
@@ -914,6 +1212,192 @@ function renderOverview() {
 
   el.innerHTML = html;
 }
+
+
+// =================== TREND RENDERER ===================
+function cleanNum(v) {
+  const n = typeof v === 'number' ? v : parseNum(v);
+  return isNaN(n) ? null : n;
+}
+
+function trendYearsForRows(rows) {
+  const years = new Set(getYearRange());
+  rows.forEach(r => Object.keys(r.values || {}).forEach(y => { if (/^20\d{2}$/.test(y)) years.add(y); }));
+  return [...years].sort();
+}
+
+function trendFmt(row, v) {
+  const n = cleanNum(v);
+  if (n == null) return '—';
+  if (/count/i.test(row.unit || '') || /jumlah|bilangan/i.test(row.label || '')) return n.toLocaleString();
+  if (/%/.test(row.unit || '') || /%|liputan|kedatangan|selesai|mbk|mbg|tpr|unmet|saringan|gigi/i.test(row.label || '')) return n.toFixed(1) + '%';
+  if (/mean|purata|dmft|dft|dfx/i.test((row.unit || '') + ' ' + (row.label || ''))) return n.toFixed(2);
+  return n.toFixed(1);
+}
+
+function trendStatus(row) {
+  const years = trendYearsForRows([row]);
+  const points = years.map(y => ({year:y, value:cleanNum(row.values?.[y])})).filter(p => p.value != null);
+  if (points.length < 2) return {cls:'watch', text:'Need data'};
+
+  const first = points[0].value;
+  const last = points[points.length - 1].value;
+  const diff = last - first;
+  const lowerBetter = /lower/i.test(row.direction || '') || /unmet|purata|dmft|dft|dfx/i.test(row.label || '');
+  const context = /context/i.test(row.direction || '') || /service volume/i.test(row.interpretation || '');
+
+  if (context) return {cls:'watch', text: diff >= 0 ? 'Volume ↑' : 'Volume ↓'};
+  if (Math.abs(diff) < 0.0001) return {cls:'watch', text:'Stable'};
+  const improving = lowerBetter ? diff < 0 : diff > 0;
+  return {cls:improving ? 'good' : 'bad', text:improving ? 'Improving' : 'Declining'};
+}
+
+function trendSvg(row) {
+  const years = trendYearsForRows([row]);
+  const points = years.map(y => ({year:y, value:cleanNum(row.values?.[y])}));
+  const valid = points.filter(p => p.value != null);
+
+  if (!valid.length) {
+    return `<div class="trend-empty">No values entered yet. Fill this KPI in <strong>Trend_Input_State</strong>.</div>`;
+  }
+
+  const w = 560, h = 210;
+  const pad = {l:48, r:22, t:26, b:42};
+  const plotW = w - pad.l - pad.r;
+  const plotH = h - pad.t - pad.b;
+  let vals = valid.map(p => p.value);
+  const target = cleanNum(row.target);
+  if (target != null) vals.push(target);
+
+  let minV = Math.min(...vals);
+  let maxV = Math.max(...vals);
+  if (minV === maxV) { minV = minV - 1; maxV = maxV + 1; }
+  const range = maxV - minV;
+  minV = minV - range * 0.12;
+  maxV = maxV + range * 0.12;
+
+  const xFor = idx => pad.l + (years.length <= 1 ? plotW / 2 : (idx / (years.length - 1)) * plotW);
+  const yFor = val => pad.t + (1 - ((val - minV) / (maxV - minV))) * plotH;
+
+  const linePts = points.map((p, idx) => {
+    if (p.value == null) return null;
+    return `${xFor(idx)},${yFor(p.value)}`;
+  }).filter(Boolean).join(' ');
+
+  const targetY = target != null ? yFor(target) : null;
+  const yTicks = [minV, (minV + maxV) / 2, maxV];
+
+  return `<div class="trend-svg-wrap">
+    <svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" role="img" aria-label="${row.label} trend chart">
+      <rect x="0" y="0" width="${w}" height="${h}" fill="transparent"></rect>
+      ${yTicks.map(t => `<line x1="${pad.l}" x2="${w-pad.r}" y1="${yFor(t)}" y2="${yFor(t)}" stroke="rgba(15,23,42,.08)" stroke-width="1"></line>
+        <text x="${pad.l-8}" y="${yFor(t)+4}" text-anchor="end" font-size="11" fill="#64748b">${trendFmt(row, t).replace('%','')}</text>`).join('')}
+      ${targetY != null ? `<line x1="${pad.l}" x2="${w-pad.r}" y1="${targetY}" y2="${targetY}" stroke="rgba(15,23,42,.35)" stroke-width="2" stroke-dasharray="5 5"></line>
+        <text x="${w-pad.r}" y="${targetY-6}" text-anchor="end" font-size="11" font-weight="800" fill="#64748b">Target ${trendFmt(row, target)}</text>` : ''}
+      ${linePts ? `<polyline points="${linePts}" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ''}
+      ${points.map((p, idx) => {
+        const x = xFor(idx);
+        const yr = `<text x="${x}" y="${h-18}" text-anchor="middle" font-size="12" font-weight="800" fill="#64748b">${p.year}</text>`;
+        if (p.value == null) return yr + `<circle cx="${x}" cy="${h-36}" r="3" fill="#cbd5e1"></circle>`;
+        const y = yFor(p.value);
+        return `<circle cx="${x}" cy="${y}" r="6" fill="white" stroke="var(--accent)" stroke-width="3"></circle>
+          <text x="${x}" y="${y-12}" text-anchor="middle" font-size="12" font-weight="900" fill="#122033">${trendFmt(row, p.value)}</text>${yr}`;
+      }).join('')}
+    </svg>
+  </div>`;
+}
+
+function trendTemplatePreview() {
+  const years = getYearRange();
+  const sampleRows = TREND_ROWS.slice(0, 5);
+  return `<table class="trend-template-table">
+    <thead><tr><th>Section</th><th>KPI Code</th><th>KPI Label</th><th>Unit</th><th>Direction</th><th>Target</th>${years.map(y => `<th>${y}</th>`).join('')}<th>Remarks</th><th>Interpretation Type</th></tr></thead>
+    <tbody>${sampleRows.map(r => `<tr><td>${r.section}</td><td>${r.code}</td><td>${r.label}</td><td>${r.unit}</td><td>${r.direction}</td><td>${r.target || ''}</td>${years.map(y => `<td>${r.values?.[y] ?? ''}</td>`).join('')}<td>${r.remarks || ''}</td><td>${r.interpretation || ''}</td></tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function renderTrend() {
+  const el = document.getElementById('content');
+  if (!TREND_ROWS.length) {
+    el.innerHTML = `<div class="panel full"><div class="panel-title">Trend Negeri</div><div class="trend-empty">Trend data not available yet.</div></div>`;
+    return;
+  }
+
+  const years = trendYearsForRows(TREND_ROWS);
+  const currentYear = years[years.length - 1];
+  const visibleRows = TREND_MODE === 'all'
+    ? TREND_ROWS
+    : TREND_ROWS.filter(r => !/service volume/i.test(r.interpretation || '') && !/context/i.test(r.direction || ''));
+
+  const withAnyValue = visibleRows.filter(r => Object.values(r.values || {}).some(v => cleanNum(v) != null)).length;
+  const sourceText = TREND_SOURCE === 'live-trend'
+    ? 'Trend CSV connected'
+    : TREND_SOURCE === 'trend-fallback-current'
+      ? 'Trend CSV failed — showing current SBH only'
+      : 'Auto-built from current SBH values';
+
+  let html = `<div class="summary-row">
+    <div class="summary-card green"><div class="label">Trend Scope</div><div class="value">State</div><div class="sub">SBH values only</div></div>
+    <div class="summary-card amber"><div class="label">Year Range</div><div class="value">${years[0]}–${currentYear}</div><div class="sub">5 years back + current</div></div>
+    <div class="summary-card"><div class="label">Trend KPIs</div><div class="value">${visibleRows.length}</div><div class="sub">${withAnyValue} with at least one value</div></div>
+    <div class="summary-card"><div class="label">Data Source</div><div class="value" style="font-size:26px;">${TREND_SOURCE === 'live-trend' ? 'Live' : 'Draft'}</div><div class="sub">${sourceText}</div></div>
+  </div>`;
+
+  html += `<div class="panel full">
+    <div class="trend-toolbar">
+      <div>
+        <div class="panel-title">Trend Pencapaian Negeri</div>
+        <div class="panel-sub">Paparan trend tahunan peringkat Sabah sahaja. Nilai daerah tidak digunakan di bahagian ini.</div>
+      </div>
+      <div class="trend-actions">
+        <button class="trend-btn ${TREND_MODE === 'main' ? 'active' : ''}" onclick="TREND_MODE='main';renderTrend()">Indikator Utama</button>
+        <button class="trend-btn ${TREND_MODE === 'all' ? 'active' : ''}" onclick="TREND_MODE='all';renderTrend()">Semua Indikator</button>
+      </div>
+    </div>`;
+
+  if (TREND_SOURCE !== 'live-trend') {
+    html += `<div class="trend-empty" style="margin-bottom:18px;">
+      <strong>Setup required:</strong> Create a new Google Sheet tab named <strong>Trend_Input_State</strong>, use the structure below, publish that tab as CSV, then paste the URL into <code>TREND_CSV_URL</code> in this HTML file.
+      Until then, the trend tab only shows the latest SBH values from the current <strong>Data</strong> sheet.
+      <div style="overflow-x:auto;">${trendTemplatePreview()}</div>
+    </div>`;
+  }
+
+  const grouped = {};
+  visibleRows.forEach(r => {
+    const key = r.section || 'TREND';
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(r);
+  });
+
+  Object.keys(grouped).forEach(section => {
+    html += `<div class="trend-group">
+      <div class="trend-group-title">${section}</div>
+      <div class="trend-grid">`;
+    grouped[section].forEach(row => {
+      const st = trendStatus(row);
+      const target = cleanNum(row.target);
+      html += `<div class="trend-card">
+        <div class="trend-card-header">
+          <div class="trend-card-title">${row.label}</div>
+          <div class="trend-chip ${st.cls}">${st.text}</div>
+        </div>
+        <div class="trend-meta">
+          <span>${row.interpretation || 'Achievement'}</span>
+          <span>${row.direction || 'Higher better'}</span>
+          ${target != null ? `<span>Target: ${trendFmt(row, target)}</span>` : ''}
+        </div>
+        ${trendSvg(row)}
+        ${row.remarks ? `<div class="trend-note">${row.remarks}</div>` : ''}
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
 
 // =================== GENERIC SECTION RENDERER ===================
 function renderSection(sec) {

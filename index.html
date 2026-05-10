@@ -585,6 +585,11 @@ let PERIOD = '';
 let LAST_UPDATED = '';
 let SOURCE = 'none';
 
+// Trend state
+var TREND_ROWS = [];
+var TREND_SOURCE = 'none';
+var TREND_MODE = 'main';
+
 // =================== CSV PARSER ===================
 function parseCSV(text) {
   return text.split('\n').map(l => l.replace(/\r$/, '')).filter(l => l.trim()).map(line => {

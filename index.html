@@ -1059,11 +1059,66 @@ async function loadData() {
 }
 
 // =================== UI BOOTSTRAP ===================
+function setHeaderContext(view) {
+  const badge = document.getElementById('periodBadge');
+
+  if (view === '__trend') {
+    if (TREND_ROWS && TREND_ROWS.length) {
+      const years = trendYearsForRows(TREND_ROWS);
+      badge.textContent = `Trend Tahunan ${years[0]}–${years[years.length - 1]}`;
+    } else {
+      badge.textContent = `Trend Tahunan ${TREND_YEAR_START}–${TREND_YEAR_END}`;
+    }
+  } else {
+    badge.textContent = PERIOD;
+  }
+}
+
+function setDataSourceStatus(view) {
+  const ds = document.getElementById('dataSourceStatus');
+  if (!ds) return;
+
+  let label = '';
+  let status = '';
+  let color = 'var(--green)';
+  let glow = 'rgba(22,163,74,.12)';
+
+  if (view === '__trend') {
+    label = 'Trend Tahunan';
+
+    if (TREND_SOURCE === 'live-trend') {
+      status = 'Google Sheet Aktif';
+    } else if (TREND_SOURCE === 'trend-fallback-current') {
+      status = 'CSV trend gagal — guna nilai SBH semasa';
+      color = 'var(--amber)';
+      glow = 'rgba(245,158,11,.18)';
+    } else {
+      status = 'Dijana daripada data semasa';
+      color = 'var(--amber)';
+      glow = 'rgba(245,158,11,.18)';
+    }
+  } else {
+    label = 'Data Semasa';
+
+    if (SOURCE === 'live') {
+      status = 'Google Sheet Aktif';
+    } else {
+      status = 'Data Sandaran';
+      color = 'var(--amber)';
+      glow = 'rgba(245,158,11,.18)';
+    }
+  }
+
+  ds.innerHTML = `
+    <span class="dot" style="background:${color};box-shadow:0 0 0 4px ${glow};"></span>
+    <span><strong>${label}:</strong> ${status}</span>
+  `;
+}
+  
 function bootUI() {
   // Status
-  const ds = document.getElementById('dataSourceStatus');
-  ds.innerHTML = '';
-  document.getElementById('periodBadge').textContent = PERIOD;
+  setDataSourceStatus('__trend');
+  setHeaderContext('__trend');
 
   // Last updated timestamp
   const luEl = document.getElementById('lastUpdated');
@@ -1086,9 +1141,15 @@ function bootUI() {
     navEl.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     const v = tab.dataset.view;
+    setHeaderContext(v);
+    setDataSourceStatus(v);
+
     if (v === '__overview') renderOverview();
     else if (v === '__trend') renderTrend();
-    else { const sec = SECTIONS.find(s => s.id === v); if (sec) renderSection(sec); }
+    else {
+      const sec = SECTIONS.find(s => s.id === v);
+      if (sec) renderSection(sec);
+    }
   });
 
   renderTrend();
@@ -1324,28 +1385,68 @@ function trendFmt(row, v) {
 
 function trendStatus(row) {
   const years = trendYearsForRows([row]);
-  const points = years.map(y => ({year:y, value:cleanNum(row.values?.[y])})).filter(p => p.value != null);
-  if (points.length < 2) return {cls:'watch', text:'Need data'};
+  const points = years
+    .map(y => ({ year: y, value: cleanNum(row.values?.[y]) }))
+    .filter(p => p.value != null);
+
+  if (points.length < 2) {
+    return { cls: 'watch', text: 'Data Tidak Mencukupi' };
+  }
 
   const first = points[0].value;
   const last = points[points.length - 1].value;
   const diff = last - first;
-  const lowerBetter = /lower/i.test(row.direction || '') || /unmet|purata|dmft|dft|dfx/i.test(row.label || '');
-  const context = /context/i.test(row.direction || '') || /service volume/i.test(row.interpretation || '');
 
-  if (context) return {cls:'watch', text: diff >= 0 ? 'Volume ↑' : 'Volume ↓'};
-  if (Math.abs(diff) < 0.0001) return {cls:'watch', text:'Stable'};
+  const lowerBetter =
+    /lower/i.test(row.direction || '') ||
+    /unmet|purata|dmft|dft|dfx/i.test(row.label || '');
+
+  const context =
+    /context/i.test(row.direction || '') ||
+    /service volume/i.test(row.interpretation || '');
+
+  if (context) {
+    return { cls: 'watch', text: diff >= 0 ? 'Volum ↑' : 'Volum ↓' };
+  }
+
+  if (Math.abs(diff) < 0.0001) {
+    return { cls: 'watch', text: 'Stabil' };
+  }
+
   const improving = lowerBetter ? diff < 0 : diff > 0;
-  return {cls:improving ? 'good' : 'bad', text:improving ? 'Improving' : 'Declining'};
+
+  return {
+    cls: improving ? 'good' : 'bad',
+    text: improving ? 'Meningkat' : 'Menurun'
+  };
 }
 
+function bmMetaText(text) {
+  const t = String(text || '').trim();
+
+  const map = {
+    'Achievement': 'Pencapaian',
+    'Coverage': 'Liputan',
+    'Disease Burden': 'Beban Penyakit',
+    'Service Volume': 'Volum Perkhidmatan',
+    'Higher better': 'Lebih tinggi lebih baik',
+    'Lower better': 'Lebih rendah lebih baik',
+    'Context only': 'Konteks sahaja',
+    'Count': 'Bilangan',
+    'Mean': 'Purata',
+    'Value': 'Nilai'
+  };
+
+  return map[t] || t || 'Tidak dinyatakan';
+}
+  
 function trendSvg(row) {
   const years = trendYearsForRows([row]);
   const points = years.map(y => ({year:y, value:cleanNum(row.values?.[y])}));
   const valid = points.filter(p => p.value != null);
 
-  if (!valid.length) {
-    return `<div class="trend-empty">No values entered yet. Fill this KPI in <strong>Trend_Input_State</strong>.</div>`;
+  if (!valid.length) {  
+    return `<div class="trend-empty">Nilai belum dimasukkan. Sila isi data KPI ini dalam <strong>Trend_Input_State</strong>.</div>`;
   }
 
   const w = 560, h = 210;
@@ -1380,7 +1481,7 @@ function trendSvg(row) {
       ${yTicks.map(t => `<line x1="${pad.l}" x2="${w-pad.r}" y1="${yFor(t)}" y2="${yFor(t)}" stroke="rgba(15,23,42,.08)" stroke-width="1"></line>
         <text x="${pad.l-8}" y="${yFor(t)+4}" text-anchor="end" font-size="11" fill="#64748b">${trendFmt(row, t).replace('%','')}</text>`).join('')}
       ${targetY != null ? `<line x1="${pad.l}" x2="${w-pad.r}" y1="${targetY}" y2="${targetY}" stroke="rgba(15,23,42,.35)" stroke-width="2" stroke-dasharray="5 5"></line>
-        <text x="${w-pad.r}" y="${targetY-6}" text-anchor="end" font-size="11" font-weight="800" fill="#64748b">Target ${trendFmt(row, target)}</text>` : ''}
+        <text x="${w-pad.r}" y="${targetY-6}" text-anchor="end" font-size="11" font-weight="800" fill="#64748b">Sasaran ${trendFmt(row, target)}</text>` : ''}
       ${linePts ? `<polyline points="${linePts}" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>` : ''}
       ${points.map((p, idx) => {
         const x = xFor(idx);
@@ -1398,7 +1499,7 @@ function trendTemplatePreview() {
   const years = getYearRange();
   const sampleRows = TREND_ROWS.slice(0, 5);
   return `<table class="trend-template-table">
-    <thead><tr><th>Section</th><th>KPI Code</th><th>KPI Label</th><th>Unit</th><th>Direction</th><th>Target</th>${years.map(y => `<th>${y}</th>`).join('')}<th>Remarks</th><th>Interpretation Type</th></tr></thead>
+    <thead><tr><th>Seksyen</th><th>Kod KPI</th><th>Label KPI</th><th>Unit</th><th>Arah</th><th>Sasaran</th>${years.map(y => `<th>${y}</th>`).join('')}<th>Catatan</th><th>Jenis Interpretasi</th></tr></thead>
     <tbody>${sampleRows.map(r => `<tr><td>${r.section}</td><td>${r.code}</td><td>${r.label}</td><td>${r.unit}</td><td>${r.direction}</td><td>${r.target || ''}</td>${years.map(y => `<td>${r.values?.[y] ?? ''}</td>`).join('')}<td>${r.remarks || ''}</td><td>${r.interpretation || ''}</td></tr>`).join('')}</tbody>
   </table>`;
 }
@@ -1416,17 +1517,34 @@ function renderTrend() {
     ? TREND_ROWS
     : TREND_ROWS.filter(r => !/service volume/i.test(r.interpretation || '') && !/context/i.test(r.direction || ''));
 
-  const withAnyValue = visibleRows.filter(r => Object.values(r.values || {}).some(v => cleanNum(v) != null)).length;
+  const withAnyValue = visibleRows.filter(r =>
+    Object.values(r.values || {}).some(v => cleanNum(v) != null)
+  ).length;
+
   const sourceText = TREND_SOURCE === 'live-trend'
-    ? 'Trend CSV connected'
+    ? 'Data trend bersambung'
     : TREND_SOURCE === 'trend-fallback-current'
-      ? 'Trend CSV failed — showing current SBH only'
-      : 'Auto-built from current SBH values';
+      ? 'CSV trend gagal dibaca — memaparkan nilai SBH semasa sahaja'
+      : 'Dijana daripada nilai SBH semasa';
 
   let html = `<div class="summary-row">
-    <div class="summary-card green"><div class="label">Pencapaian Tahunan</div><div class="value">Sabah</div></div>
-    <div class="summary-card amber"><div class="label">Tahun</div><div class="value">${years[0]}–${currentYear}</div></div>    
-    <div class="summary-card"><div class="label">Sumber Data</div><div class="value" style="font-size:26px;">${TREND_SOURCE === 'live-trend' ? 'Live' : 'Draft'}</div><div class="sub">${sourceText}</div></div>
+    <div class="summary-card green">
+      <div class="label">Skop Trend</div>
+      <div class="value">Sabah</div>
+      <div class="sub">Peringkat negeri sahaja</div>
+    </div>
+
+    <div class="summary-card amber">
+      <div class="label">Tahun</div>
+      <div class="value">${years[0]}–${currentYear}</div>
+      <div class="sub">Trend tahunan</div>
+    </div>
+
+    <div class="summary-card">
+      <div class="label">Indikator Trend</div>
+      <div class="value">${visibleRows.length}</div>
+      <div class="sub">${withAnyValue} mempunyai sekurang-kurangnya satu nilai</div>
+    </div>
   </div>`;
 
   html += `<div class="panel full">
@@ -1442,8 +1560,8 @@ function renderTrend() {
 
   if (TREND_SOURCE !== 'live-trend') {
     html += `<div class="trend-empty" style="margin-bottom:18px;">
-      <strong>Setup required:</strong> Create a new Google Sheet tab named <strong>Trend_Input_State</strong>, use the structure below, publish that tab as CSV, then paste the URL into <code>TREND_CSV_URL</code> in this HTML file.
-      Until then, the trend tab only shows the latest SBH values from the current <strong>Data</strong> sheet.
+      <strong>Tetapan diperlukan:</strong> Sediakan tab Google Sheet bernama <strong>Trend_Input_State</strong>, gunakan struktur di bawah, publish tab tersebut sebagai CSV, kemudian tampal URL ke dalam <code>TREND_CSV_URL</code> dalam fail HTML ini.
+      Buat sementara waktu, tab trend hanya memaparkan nilai SBH terkini daripada sheet <strong>Data</strong>.
       <div style="overflow-x:auto;">${trendTemplatePreview()}</div>
     </div>`;
   }
@@ -1468,9 +1586,9 @@ function renderTrend() {
           <div class="trend-chip ${st.cls}">${st.text}</div>
         </div>
         <div class="trend-meta">
-          <span>${row.interpretation || 'Achievement'}</span>
-          <span>${row.direction || 'Higher better'}</span>
-          ${target != null ? `<span>Target: ${trendFmt(row, target)}</span>` : ''}
+          <span>${bmMetaText(row.interpretation || 'Achievement')}</span>
+          <span>${bmMetaText(row.direction || 'Higher better')}</span>
+          ${target != null ? `<span>Sasaran: ${trendFmt(row, target)}</span>` : ''}
         </div>
         ${trendSvg(row)}
         ${row.remarks ? `<div class="trend-note">${row.remarks}</div>` : ''}

@@ -537,7 +537,7 @@ const TREND_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQktvvtw-
 
 // For 5 years back + current year. Edit if you want a different range.
 const TREND_YEAR_START = 2021;
-const TREND_YEAR_END   = 2025;
+const TREND_YEAR_END   = 2026;
 
 // =====================================================================
 
@@ -858,9 +858,94 @@ function parseTrendLong(rows) {
   return [...map.values()];
 }
 
+// Parser for section-header format: section names as standalone rows,
+// header row has "KPI" + year columns, KPI rows underneath each section.
+function parseTrendSectionHeader(rows) {
+  // Find header row: first column is "KPI" and other columns are years
+  const headerIdx = rows.findIndex(r =>
+    /^kpi$/i.test(String(r[0] || '').trim()) &&
+    r.some(c => /^20\d{2}$/.test(String(c || '').trim()))
+  );
+  if (headerIdx < 0) return [];
+
+  const header = rows[headerIdx].map(c => String(c || '').trim());
+  const yearCols = [];
+  header.forEach((h, i) => {
+    if (/^20\d{2}$/.test(h)) yearCols.push({ year: h, col: i });
+  });
+  if (!yearCols.length) return [];
+
+  // Known section headers from the Data sheet
+  const SECTION_NAMES = [
+    'IBU MENGANDUNG', 'TODDLER', 'PRASEKOLAH / TADIKA',
+    'SEKOLAH RENDAH', 'SEKOLAH MENENGAH', 'DEWASA', 'WARGA EMAS'
+  ];
+
+  const out = [];
+  let currentSection = '';
+
+  for (let r = headerIdx + 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row || row.every(c => String(c || '').trim() === '')) continue;
+
+    const label = String(row[0] || '').trim();
+    if (!label) continue;
+
+    // Skip note rows
+    if (/^nota:/i.test(label)) continue;
+
+    // Check if this is a section header
+    if (SECTION_NAMES.includes(label.toUpperCase()) || SECTION_NAMES.includes(label)) {
+      currentSection = label;
+      continue;
+    }
+
+    // This is a KPI row
+    const vals = {};
+    yearCols.forEach(yc => {
+      const raw = row[yc.col];
+      const v = parseNum(raw);
+      vals[yc.year] = isNaN(v) ? '' : v;
+    });
+
+    const kpiObj = {
+      section: currentSection,
+      code: makeKpiCode(currentSection, label),
+      label,
+      unit: '',
+      direction: 'Higher better',
+      target: '',
+      interpretation: 'Achievement',
+      remarks: '',
+      values: vals
+    };
+
+    // Infer metadata from label
+    kpiObj.unit = inferUnit(kpiObj);
+    kpiObj.direction = inferDirection(kpiObj);
+    kpiObj.interpretation = inferInterpretation(kpiObj);
+
+    // Pull target from current Data sheet if available
+    const matchSection = SECTIONS.find(s =>
+      s.name.toUpperCase() === currentSection.toUpperCase()
+    );
+    if (matchSection) {
+      const matchKpi = matchSection.kpis.find(k => k.label === label);
+      if (matchKpi && matchKpi.target != null) {
+        kpiObj.target = matchKpi.target;
+      }
+    }
+
+    out.push(kpiObj);
+  }
+  return out;
+}
+
 function parseTrendSheet(rows) {
   const wide = parseTrendWide(rows);
   if (wide.length) return wide;
+  const sectionHeader = parseTrendSectionHeader(rows);
+  if (sectionHeader.length) return sectionHeader;
   const long = parseTrendLong(rows);
   if (long.length) return long;
   return [];

@@ -1427,9 +1427,8 @@ function renderTrend() {
       : 'Auto-built from current SBH values';
 
   let html = `<div class="summary-row">
-    <div class="summary-card green"><div class="label">Trend Scope</div><div class="value">State</div><div class="sub">SBH values only</div></div>
-    <div class="summary-card amber"><div class="label">Year Range</div><div class="value">${years[0]}–${currentYear}</div><div class="sub">5 years back + current</div></div>
-    <div class="summary-card"><div class="label">Trend KPIs</div><div class="value">${visibleRows.length}</div><div class="sub">${withAnyValue} with at least one value</div></div>
+    <div class="summary-card green"><div class="label">Pencapaian Tahunan</div><div class="value">Sabah</div></div>
+    <div class="summary-card amber"><div class="label">Tahun</div><div class="value">${years[0]}–${currentYear}</div></div>    
     <div class="summary-card"><div class="label">Data Source</div><div class="value" style="font-size:26px;">${TREND_SOURCE === 'live-trend' ? 'Live' : 'Draft'}</div><div class="sub">${sourceText}</div></div>
   </div>`;
 

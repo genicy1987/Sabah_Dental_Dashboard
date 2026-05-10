@@ -1076,8 +1076,8 @@ function bootUI() {
   // Build tabs dynamically
   const navEl = document.getElementById('navTabs');
   navEl.style.display = 'flex';
-  navEl.innerHTML = `<div class="nav-tab active" data-view="__trend">Trend Tahunan</div>` 
-    + `<div class="nav-tab" data-view="__overview">Pencapaian Semasa</div>`
+  navEl.innerHTML = `<div class="nav-tab active" data-view="__trend">TREND TAHUNAN</div>` 
+    + `<div class="nav-tab" data-view="__overview">PENCAPAIAN SEMASA</div>`
     + SECTIONS.map(s => `<div class="nav-tab" data-view="${s.id}">${s.name}</div>`).join('');
 
   navEl.addEventListener('click', e => {

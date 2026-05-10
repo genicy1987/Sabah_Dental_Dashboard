@@ -1076,8 +1076,8 @@ function bootUI() {
   // Build tabs dynamically
   const navEl = document.getElementById('navTabs');
   navEl.style.display = 'flex';
-  navEl.innerHTML = `<div class="nav-tab active" data-view="__overview">Ringkasan Negeri</div>`
-    + `<div class="nav-tab" data-view="__trend">Trend Negeri</div>`
+  navEl.innerHTML = `<div class="nav-tab active" data-view="__trend">Trend Tahunan</div>` 
+    + `<div class="nav-tab" data-view="__overview">Pencapaian Semasa</div>`
     + SECTIONS.map(s => `<div class="nav-tab" data-view="${s.id}">${s.name}</div>`).join('');
 
   navEl.addEventListener('click', e => {
@@ -1091,7 +1091,7 @@ function bootUI() {
     else { const sec = SECTIONS.find(s => s.id === v); if (sec) renderSection(sec); }
   });
 
-  renderOverview();
+  renderTrend();
 }
 
 // =================== HELPERS ===================
